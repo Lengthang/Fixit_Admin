@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { auth } from "@/lib/api";
 
 const NAV = [
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/providers", label: "Approvals" },
   { href: "/disputes", label: "Disputes" },
   { href: "/bookings", label: "Bookings" },

@@ -19,7 +19,7 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/providers");
+    router.replace("/dashboard");
   }, [router]);
   return null;
 }
