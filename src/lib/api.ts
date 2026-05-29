@@ -6,6 +6,7 @@
 import type {
   User, UserDetail, ProviderProfile, Booking, Dispute,
   PromoCode, Category, ProviderStatus, DisputeResolution,
+  AdminWalletView,
 } from "@/types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -80,6 +81,8 @@ export const api = {
   banUser: (userId: string) => patch<User>(`/admin/${userId}/ban`),
   unbanUser: (userId: string) => patch<User>(`/admin/${userId}/unban`),
   deleteUser: (userId: string) => del<{ message: string }>(`/admin/${userId}/`),
+  userWallet: (userId: string) =>
+    request<AdminWalletView>(`/admin/users/${userId}/wallet`),
 
   // Bookings
   bookings: () => request<Booking[]>("/admin/bookings"),

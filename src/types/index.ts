@@ -24,6 +24,28 @@ export interface User {
   created_at: string;
 }
 
+export interface Availability {
+  id: string;
+  day_of_week: string;
+  open_time: string;   // "HH:MM:SS"
+  close_time: string;  // "HH:MM:SS"
+}
+
+export interface Service {
+  id: string;
+  provider_id: string;
+  category_id: string | null;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  price: number;
+  duration_minutes: number | null;
+  min_quantity: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface ProviderProfile {
   id: string;
   user_id: string;
@@ -42,9 +64,15 @@ export interface ProviderProfile {
   status: ProviderStatus;
   created_at: string;
   categories: Category[];
+  availability: Availability[];
   // present on detail response
   name?: string | null;
+  services?: Service[];
   total_jobs_completed?: number;
+}
+
+export interface UserDetail extends User {
+  provider_profile: ProviderProfile | null;
 }
 
 export interface UserDetail extends User {
@@ -147,4 +175,10 @@ export interface WalletTransaction {
   reference_id: string | null;
   description: string | null;
   created_at: string;
+}
+// Admin view of another user's wallet (composite endpoint).
+export interface AdminWalletView {
+  id: string;
+  balance: string;
+  transactions: WalletTransaction[];
 }
