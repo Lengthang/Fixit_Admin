@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, mediaUrl } from "@/lib/api";
 import { Card, Button, PageHeader, StateBox, StatusBadge } from "@/components/ui";
-import type { Booking, WalletTransaction } from "@/types";
+import { useSortableData, SortableTh, type SortableColumn } from "@/lib/sortable";
+import type { Booking, WalletTransaction, Service } from "@/types";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -200,35 +201,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
                       {/* Services offered */}
                       {p.services && p.services.length > 0 && (
-                        <div>
-                          <SubLabel>Services offered</SubLabel>
-                          <div className="overflow-hidden rounded-xl border border-line">
-                            <table className="w-full text-sm">
-                              <thead className="bg-line/20 text-left text-xs uppercase tracking-wide text-mute">
-                                <tr>
-                                  <th className="px-4 py-2 font-semibold">Service</th>
-                                  <th className="px-4 py-2 font-semibold">Price</th>
-                                  <th className="px-4 py-2 font-semibold">Duration</th>
-                                  <th className="px-4 py-2 font-semibold">Active</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-line">
-                                {p.services.map((s) => (
-                                  <tr key={s.id}>
-                                    <td className="px-4 py-2 font-medium text-ink">{s.title}</td>
-                                    <td className="px-4 py-2 text-slate">{s.price}</td>
-                                    <td className="px-4 py-2 text-slate">
-                                      {s.duration_minutes ? `${s.duration_minutes} min` : "—"}
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <StatusBadge status={s.is_active ? "active" : "rejected"} />
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
+                        <ServicesTable services={p.services} />
                       )}
                     </div>
                   );
@@ -243,6 +216,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                 isLoading={bookingsQ.isLoading}
                 error={bookingsQ.error as Error | null}
                 counterpartyLabel="Provider"
+                counterpartyKey="provider"
                 counterparty={(b) => b.provider?.name ?? "—"}
                 empty="No bookings made as a customer."
               />
@@ -256,6 +230,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                   isLoading={bookingsQ.isLoading}
                   error={bookingsQ.error as Error | null}
                   counterpartyLabel="Customer"
+                  counterpartyKey="customer"
                   counterparty={(b) => b.customer?.name ?? "—"}
                   empty="No bookings fulfilled as a provider."
                 />
@@ -275,28 +250,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                   {walletQ.data.transactions.length === 0 ? (
                     <StateBox>No wallet transactions.</StateBox>
                   ) : (
-                    <div className="overflow-hidden rounded-xl border border-line">
-                      <table className="w-full text-sm">
-                        <thead className="bg-line/20 text-left text-xs uppercase tracking-wide text-mute">
-                          <tr>
-                            <th className="px-4 py-2 font-semibold">Type</th>
-                            <th className="px-4 py-2 font-semibold">Amount</th>
-                            <th className="px-4 py-2 font-semibold">Description</th>
-                            <th className="px-4 py-2 font-semibold">Date</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-line">
-                          {walletQ.data.transactions.map((t: WalletTransaction) => (
-                            <tr key={t.id}>
-                              <td className="px-4 py-2 capitalize text-ink">{t.type.replace(/_/g, " ")}</td>
-                              <td className="px-4 py-2 font-medium text-ink">{t.amount}</td>
-                              <td className="px-4 py-2 text-slate">{t.description ?? "—"}</td>
-                              <td className="px-4 py-2 text-slate">{new Date(t.created_at).toLocaleDateString()}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <WalletTable transactions={walletQ.data.transactions} />
                   )}
                 </>
               )}
@@ -380,15 +334,27 @@ function DetailNode({ label, children }: { label: string; children: React.ReactN
 }
 
 function BookingTable({
-  rows, isLoading, error, counterpartyLabel, counterparty, empty,
+  rows, isLoading, error, counterpartyLabel, counterpartyKey, counterparty, empty,
 }: {
   rows: Booking[];
   isLoading: boolean;
   error: Error | null;
   counterpartyLabel: string;
+  counterpartyKey: string;
   counterparty: (b: Booking) => string;
   empty: string;
 }) {
+  const columns = useMemo<SortableColumn<Booking>[]>(
+    () => [
+      { key: "counterparty", type: "text", accessor: (b) => counterparty(b) },
+      { key: "scheduled", type: "date", accessor: (b) => b.scheduled_at },
+      { key: "total", type: "number", accessor: (b) => Number(b.total_amount) },
+      { key: "status", type: "text", accessor: (b) => b.status },
+    ],
+    [counterparty],
+  );
+  const { sorted, sort, toggle } = useSortableData(rows, columns);
+
   if (isLoading) return <StateBox>Loading bookings…</StateBox>;
   if (error) return <StateBox>{error.message}</StateBox>;
   if (rows.length === 0) return <StateBox>{empty}</StateBox>;
@@ -398,19 +364,102 @@ function BookingTable({
       <table className="w-full text-sm">
         <thead className="bg-line/20 text-left text-xs uppercase tracking-wide text-mute">
           <tr>
-            <th className="px-4 py-2 font-semibold">{counterpartyLabel}</th>
-            <th className="px-4 py-2 font-semibold">Scheduled</th>
-            <th className="px-4 py-2 font-semibold">Total</th>
-            <th className="px-4 py-2 font-semibold">Status</th>
+            <SortableTh sortKey="counterparty" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">{counterpartyLabel}</SortableTh>
+            <SortableTh sortKey="scheduled" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Scheduled</SortableTh>
+            <SortableTh sortKey="total" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Total</SortableTh>
+            <SortableTh sortKey="status" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Status</SortableTh>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {rows.map((b) => (
+          {sorted.map((b) => (
             <tr key={b.id} className="hover:bg-line/20">
               <td className="px-4 py-2 font-medium text-ink">{counterparty(b)}</td>
               <td className="px-4 py-2 text-slate">{new Date(b.scheduled_at).toLocaleString()}</td>
               <td className="px-4 py-2 font-semibold text-ink">{b.currency} {b.total_amount}</td>
               <td className="px-4 py-2"><StatusBadge status={b.status} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ServicesTable({ services }: { services: Service[] }) {
+  const columns = useMemo<SortableColumn<Service>[]>(
+    () => [
+      { key: "title", type: "text", accessor: (s) => s.title },
+      { key: "price", type: "number", accessor: (s) => s.price },
+      { key: "duration", type: "number", accessor: (s) => s.duration_minutes },
+      { key: "active", type: "text", accessor: (s) => (s.is_active ? "active" : "rejected") },
+    ],
+    [],
+  );
+  const { sorted, sort, toggle } = useSortableData(services, columns);
+
+  return (
+    <div>
+      <SubLabel>Services offered</SubLabel>
+      <div className="overflow-hidden rounded-xl border border-line">
+        <table className="w-full text-sm">
+          <thead className="bg-line/20 text-left text-xs uppercase tracking-wide text-mute">
+            <tr>
+              <SortableTh sortKey="title" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Service</SortableTh>
+              <SortableTh sortKey="price" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Price</SortableTh>
+              <SortableTh sortKey="duration" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Duration</SortableTh>
+              <SortableTh sortKey="active" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Active</SortableTh>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {sorted.map((s) => (
+              <tr key={s.id}>
+                <td className="px-4 py-2 font-medium text-ink">{s.title}</td>
+                <td className="px-4 py-2 text-slate">{s.price}</td>
+                <td className="px-4 py-2 text-slate">
+                  {s.duration_minutes ? `${s.duration_minutes} min` : "—"}
+                </td>
+                <td className="px-4 py-2">
+                  <StatusBadge status={s.is_active ? "active" : "rejected"} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function WalletTable({ transactions }: { transactions: WalletTransaction[] }) {
+  const columns = useMemo<SortableColumn<WalletTransaction>[]>(
+    () => [
+      { key: "type", type: "text", accessor: (t) => t.type },
+      { key: "amount", type: "number", accessor: (t) => Number(t.amount) },
+      { key: "description", type: "text", accessor: (t) => t.description },
+      { key: "date", type: "date", accessor: (t) => t.created_at },
+    ],
+    [],
+  );
+  const { sorted, sort, toggle } = useSortableData(transactions, columns);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-line">
+      <table className="w-full text-sm">
+        <thead className="bg-line/20 text-left text-xs uppercase tracking-wide text-mute">
+          <tr>
+            <SortableTh sortKey="type" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Type</SortableTh>
+            <SortableTh sortKey="amount" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Amount</SortableTh>
+            <SortableTh sortKey="description" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Description</SortableTh>
+            <SortableTh sortKey="date" sort={sort} onSort={toggle} className="px-4 py-2 font-semibold">Date</SortableTh>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {sorted.map((t) => (
+            <tr key={t.id}>
+              <td className="px-4 py-2 capitalize text-ink">{t.type.replace(/_/g, " ")}</td>
+              <td className="px-4 py-2 font-medium text-ink">{t.amount}</td>
+              <td className="px-4 py-2 text-slate">{t.description ?? "—"}</td>
+              <td className="px-4 py-2 text-slate">{new Date(t.created_at).toLocaleDateString()}</td>
             </tr>
           ))}
         </tbody>

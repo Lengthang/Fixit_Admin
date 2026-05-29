@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, Button, PageHeader, StateBox, StatusBadge } from "@/components/ui";
+import { useSortableData, SortableTh, type SortableColumn } from "@/lib/sortable";
+import type { PromoCode } from "@/types";
 
 export default function PromoCodesPage() {
   const qc = useQueryClient();
@@ -30,6 +32,18 @@ export default function PromoCodesPage() {
     mutationFn: (id: string) => api.deactivatePromo(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["promos"] }),
   });
+
+  const columns = useMemo<SortableColumn<PromoCode>[]>(
+    () => [
+      { key: "code", type: "text", accessor: (p) => p.code },
+      { key: "discount", type: "number", accessor: (p) => p.discount_percentage },
+      { key: "uses", type: "number", accessor: (p) => p.current_uses },
+      { key: "status", type: "text", accessor: (p) => (p.is_active ? "active" : "rejected") },
+    ],
+    [],
+  );
+
+  const { sorted, sort, toggle } = useSortableData(data ?? [], columns);
 
   return (
     <div>
@@ -59,15 +73,15 @@ export default function PromoCodesPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-line bg-line/20 text-left text-xs uppercase tracking-wide text-mute">
               <tr>
-                <th className="px-5 py-3 font-semibold">Code</th>
-                <th className="px-5 py-3 font-semibold">Discount</th>
-                <th className="px-5 py-3 font-semibold">Uses</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
+                <SortableTh sortKey="code" sort={sort} onSort={toggle} className="px-5 py-3 font-semibold">Code</SortableTh>
+                <SortableTh sortKey="discount" sort={sort} onSort={toggle} className="px-5 py-3 font-semibold">Discount</SortableTh>
+                <SortableTh sortKey="uses" sort={sort} onSort={toggle} className="px-5 py-3 font-semibold">Uses</SortableTh>
+                <SortableTh sortKey="status" sort={sort} onSort={toggle} className="px-5 py-3 font-semibold">Status</SortableTh>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {data.map((p) => (
+              {sorted.map((p) => (
                 <tr key={p.id} className="hover:bg-line/20">
                   <td className="px-5 py-3 font-mono font-semibold text-ink">{p.code}</td>
                   <td className="px-5 py-3 text-slate">{p.discount_percentage}%</td>

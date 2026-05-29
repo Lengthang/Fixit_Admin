@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, Button, PageHeader, StateBox, StatusBadge } from "@/components/ui";
+import { useSortableData, SortableTh, type SortableColumn } from "@/lib/sortable";
+import type { User } from "@/types";
 
 export default function UsersPage() {
   const qc = useQueryClient();
@@ -30,6 +32,18 @@ export default function UsersPage() {
     );
   }, [data, search]);
 
+  const columns = useMemo<SortableColumn<User>[]>(
+    () => [
+      { key: "name", type: "text", accessor: (u) => u.name },
+      { key: "phone", type: "text", accessor: (u) => u.phone },
+      { key: "role", type: "text", accessor: (u) => u.role },
+      { key: "status", type: "text", accessor: (u) => (u.is_active ? "active" : "banned") },
+    ],
+    [],
+  );
+
+  const { sorted, sort, toggle } = useSortableData(filtered, columns);
+
   return (
     <div>
       <PageHeader title="Users" subtitle="Search, ban, or restore accounts." />
@@ -52,15 +66,15 @@ export default function UsersPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-line bg-line/20 text-left text-xs uppercase tracking-wide text-mute">
               <tr>
-                <th className="px-5 py-3 font-semibold">Name</th>
-                <th className="px-5 py-3 font-semibold">Phone</th>
-                <th className="px-5 py-3 font-semibold">Role</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
+                <SortableTh sortKey="name" sort={sort} onSort={toggle} className="px-5 py-3 font-semibold">Name</SortableTh>
+                <SortableTh sortKey="phone" sort={sort} onSort={toggle} className="px-5 py-3 font-semibold">Phone</SortableTh>
+                <SortableTh sortKey="role" sort={sort} onSort={toggle} className="px-5 py-3 font-semibold">Role</SortableTh>
+                <SortableTh sortKey="status" sort={sort} onSort={toggle} className="px-5 py-3 font-semibold">Status</SortableTh>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {filtered.map((u) => (
+              {sorted.map((u) => (
                 <tr key={u.id} className="hover:bg-line/20">
                   <td className="px-5 py-3 font-medium text-ink">
                     <Link href={`/users/${u.id}`} className="hover:text-brand hover:underline">
